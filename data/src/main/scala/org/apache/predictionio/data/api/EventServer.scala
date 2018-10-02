@@ -20,13 +20,13 @@ package org.apache.predictionio.data.api
 
 import akka.event.Logging
 import sun.misc.BASE64Decoder
-
 import java.util.concurrent.TimeUnit
 
 import akka.actor._
 import akka.io.IO
 import akka.pattern.ask
 import akka.util.Timeout
+import io.prometheus.client.Histogram
 import org.apache.predictionio.data.Utils
 import org.apache.predictionio.data.storage.AccessKeys
 import org.apache.predictionio.data.storage.Channels
@@ -47,15 +47,32 @@ import spray.http.StatusCodes
 import spray.httpx.Json4sSupport
 import spray.routing._
 import spray.routing.authentication.Authentication
+import io.prometheus.client.exporter.MetricsServlet
+import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.servlet.{ServletContextHandler, ServletHolder}
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Try, Success, Failure}
+import scala.util.{Failure, Success, Try}
 
 class  EventServiceActor(
     val eventClient: LEvents,
     val accessKeysClient: AccessKeys,
     val channelsClient: Channels,
     val config: EventServerConfig) extends HttpServiceActor {
+
+  def startServerAndRegisterMetrics(): Server = {
+    val server = new Server(sys.env.getOrElse("PROM_METRICS_PORT", "8888").toInt)
+    val context = new ServletContextHandler()
+    context.setContextPath("/")
+    server.setHandler(context)
+    context.addServlet(new ServletHolder(new MetricsServlet()), "/metrics")
+    server.start()
+    server.setStopAtShutdown(true)
+    server
+  }
+
+  val eventServerLatencyHisto = Histogram.build()
+    .name("eventserver_latency_seconds").help("Latency for gets to EventServer in seconds.").register()
 
   object Json4sProtocol extends Json4sSupport {
     implicit def json4sFormats: Formats = DefaultFormats +
@@ -220,6 +237,7 @@ class  EventServiceActor(
               respondWithMediaType(MediaTypes.`application/json`) {
                 complete {
                   logger.debug(s"GET event ${eventId}.")
+                  val timer = eventServerLatencyHisto.startTimer()
                   val data = eventClient.futureGet(eventId, appId, channelId).map { eventOpt =>
                     eventOpt.map( event =>
                       (StatusCodes.OK, event)
@@ -227,6 +245,7 @@ class  EventServiceActor(
                       (StatusCodes.NotFound, Map("message" -> "Not Found"))
                     )
                   }
+                  data.onComplete(_ => timer.observeDuration())
                   data
                 }
               }
@@ -338,8 +357,8 @@ class  EventServiceActor(
                       (startTime, untilTime)
                     }
 
-
                     parseTime.flatMap { case (startTime, untilTime) =>
+                      val timer = eventServerLatencyHisto.startTimer()
                       val data = eventClient.futureFind(
                         appId = appId,
                         channelId = channelId,
@@ -360,6 +379,7 @@ class  EventServiceActor(
                               Map("message" -> "Not Found"))
                           }
                         }
+                      data.onComplete(_ => timer.observeDuration())
                       data
                     }.recover {
                       case e: Exception =>

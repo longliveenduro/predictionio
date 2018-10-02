@@ -19,11 +19,19 @@ import PIOBuild._
 
 name := "apache-predictionio-data"
 
+val prometheusVersion = "0.5.0"
+
 libraryDependencies ++= Seq(
   "com.github.nscala-time" %% "nscala-time"    % "2.6.0",
   "com.google.guava"        % "guava"          % "14.0.1",
   "io.spray"               %% "spray-can"      % "1.3.3",
   "io.spray"               %% "spray-routing"  % "1.3.3",
+  "io.prometheus" % "simpleclient" % prometheusVersion,
+  "io.prometheus" % "simpleclient_hotspot" % prometheusVersion,
+  "io.prometheus" % "simpleclient_servlet" % prometheusVersion,
+  "io.prometheus" % "simpleclient_pushgateway" % prometheusVersion,
+  "org.eclipse.jetty" % "jetty-server" % "9.4.6.v20170531",
+  "org.eclipse.jetty" % "jetty-servlet" % "9.4.6.v20170531",
   "io.spray"               %% "spray-testkit"  % "1.3.3" % "test",
   "org.apache.spark"       %% "spark-sql"      % sparkVersion.value % "provided",
   "org.clapper"            %% "grizzled-slf4j" % "1.0.2",
