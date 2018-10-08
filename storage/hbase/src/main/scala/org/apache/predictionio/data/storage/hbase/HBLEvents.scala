@@ -19,6 +19,7 @@
 package org.apache.predictionio.data.storage.hbase
 
 import grizzled.slf4j.Logging
+import io.prometheus.client.Histogram
 import org.apache.predictionio.data.storage.Event
 import org.apache.predictionio.data.storage.LEvents
 import org.apache.predictionio.data.storage.StorageClientConfig
@@ -128,6 +129,7 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
     eventId: String, appId: Int, channelId: Option[Int])(implicit ec: ExecutionContext):
     Future[Option[Event]] = {
       Future {
+        val timer = HBLEvents.eventServerGetLatencyHisto.startTimer()
         val table = getTable(appId, channelId)
         val rowKey = RowKey(eventId)
         val get = new Get(rowKey.toBytes)
@@ -135,12 +137,14 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
         val result = table.get(get)
         table.close()
 
-        if (!result.isEmpty()) {
+        val r = if (!result.isEmpty()) {
           val event = resultToEvent(result, appId)
           Some(event)
         } else {
           None
         }
+        timer.observeDuration()
+        r
       }
     }
 
@@ -173,7 +177,7 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
     reversed: Option[Boolean] = None)(implicit ec: ExecutionContext):
     Future[Iterator[Event]] = {
       Future {
-
+        val timer = HBLEvents.eventServerFindLatencyHisto.startTimer()
         require(!((reversed == Some(true)) && (entityType.isEmpty || entityId.isEmpty)),
           "the parameter reversed can only be used with both entityType and entityId specified.")
 
@@ -200,10 +204,20 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
           case Some(x) => eventsIter.take(x)
         }
 
-        val eventsIt = results.map { resultToEvent(_, appId) }
+        val eventsIt: Iterator[Event] = results.map { resultToEvent(_, appId) }
+
+        timer.observeDuration()
 
         eventsIt
       }
   }
 
+}
+
+object HBLEvents {
+  val eventServerGetLatencyHisto = Histogram.build()
+    .name("event_server_get_latency_seconds").help("Latency for gets to Event Server (HBase) in seconds.").register()
+
+  val eventServerFindLatencyHisto = Histogram.build()
+    .name("event_server_find_latency_seconds").help("Latency for finds to Event Server (HBase) in seconds.").register()
 }

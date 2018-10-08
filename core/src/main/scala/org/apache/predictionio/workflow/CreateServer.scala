@@ -32,6 +32,8 @@ import com.twitter.chill.{KryoBase, KryoInjection, ScalaKryoInstantiator}
 import com.typesafe.config.ConfigFactory
 import de.javakaffee.kryoserializers.SynchronizedCollectionsSerializer
 import grizzled.slf4j.Logging
+import io.prometheus.client.Histogram
+import io.prometheus.client.exporter.MetricsServlet
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.predictionio.authentication.KeyAuthentication
 import org.apache.predictionio.configuration.SSLConfiguration
@@ -39,6 +41,8 @@ import org.apache.predictionio.controller.{Engine, Params, Utils, WithPrId}
 import org.apache.predictionio.core.{BaseAlgorithm, BaseServing, Doer}
 import org.apache.predictionio.data.storage.{EngineInstance, Storage}
 import org.apache.predictionio.workflow.JsonExtractorOption.JsonExtractorOption
+import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.servlet.{ServletContextHandler, ServletHolder}
 import org.json4s._
 import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization.write
@@ -465,6 +469,7 @@ class ServerActor[Q, P](
       post {
         detach() {
           entity(as[String]) { queryString =>
+            val totalRecoTimer = ServerActor.recommendationLatencyHisto.startTimer()
             try {
               val servingStartTime = DateTime.now
               val jsonExtractorOption = args.jsonExtractor
@@ -486,9 +491,11 @@ class ServerActor[Q, P](
               // finally Serving.serve.
               val supplementedQuery = serving.supplementBase(query)
               // TODO: Parallelize the following.
+              val purePredictTimer = ServerActor.purePredictionLatencyHisto.startTimer()
               val predictions = algorithms.zip(models).map { case (a, m) =>
                 a.predictBase(m, supplementedQuery)
               }
+              purePredictTimer.observeDuration()
               // Notice that it is by design to call Serving.serve with the
               // *original* query.
               val prediction = serving.serveBase(query, predictions)
@@ -584,6 +591,8 @@ class ServerActor[Q, P](
                 (requestCount + 1)
               requestCount += 1
 
+              totalRecoTimer.observeDuration()
+
               respondWithMediaType(`application/json`) {
                 complete(compact(render(pluginResult)))
               }
@@ -598,6 +607,7 @@ class ServerActor[Q, P](
                     args.logPrefix.getOrElse(""),
                     msg)
                   }
+                totalRecoTimer.observeDuration()
                 complete(StatusCodes.BadRequest, e.getMessage)
               case e: Throwable =>
                 val msg = s"Query:\n$queryString\n\nStack Trace:\n" +
@@ -609,6 +619,7 @@ class ServerActor[Q, P](
                     args.logPrefix.getOrElse(""),
                     msg)
                   }
+                totalRecoTimer.observeDuration()
                 complete(StatusCodes.InternalServerError, msg)
             }
           }
@@ -688,6 +699,25 @@ class ServerActor[Q, P](
         }
       }
     }
+}
+
+object ServerActor {
+  val recommendationLatencyHisto = Histogram.build()
+    .name("recommendation_latency_seconds").help("Latency for gets to Recommendation (Query Server) in seconds.").register()
+
+  val purePredictionLatencyHisto = Histogram.build()
+    .name("pure_prediction_latency_seconds").help("Latency for pure prediction (URAlogrithm.predict incl. ES call) in seconds.").register()
+
+  val promJettyServer: Server = {
+    val server = new Server(sys.env.getOrElse("QUERY_PROM_METRICS_PORT", "8889").toInt)
+    val context = new ServletContextHandler()
+    context.setContextPath("/")
+    server.setHandler(context)
+    context.addServlet(new ServletHolder(new MetricsServlet()), "/metrics")
+    server.start()
+    server.setStopAtShutdown(true)
+    server
+  }
 }
 
 object EngineServerJson4sSupport extends Json4sSupport {

@@ -60,20 +60,6 @@ class  EventServiceActor(
     val channelsClient: Channels,
     val config: EventServerConfig) extends HttpServiceActor {
 
-  def startServerAndRegisterMetrics(): Server = {
-    val server = new Server(sys.env.getOrElse("PROM_METRICS_PORT", "8888").toInt)
-    val context = new ServletContextHandler()
-    context.setContextPath("/")
-    server.setHandler(context)
-    context.addServlet(new ServletHolder(new MetricsServlet()), "/metrics")
-    server.start()
-    server.setStopAtShutdown(true)
-    server
-  }
-
-  val eventServerLatencyHisto = Histogram.build()
-    .name("eventserver_latency_seconds").help("Latency for gets to EventServer in seconds.").register()
-
   object Json4sProtocol extends Json4sSupport {
     implicit def json4sFormats: Formats = DefaultFormats +
       new EventJson4sSupport.APISerializer +
@@ -237,7 +223,7 @@ class  EventServiceActor(
               respondWithMediaType(MediaTypes.`application/json`) {
                 complete {
                   logger.debug(s"GET event ${eventId}.")
-                  val timer = eventServerLatencyHisto.startTimer()
+                  val timer = EventServer.eventServerLatencyHisto.startTimer()
                   val data = eventClient.futureGet(eventId, appId, channelId).map { eventOpt =>
                     eventOpt.map( event =>
                       (StatusCodes.OK, event)
@@ -358,7 +344,7 @@ class  EventServiceActor(
                     }
 
                     parseTime.flatMap { case (startTime, untilTime) =>
-                      val timer = eventServerLatencyHisto.startTimer()
+                      val timer = EventServer.eventServerLatencyHisto.startTimer()
                       val data = eventClient.futureFind(
                         appId = appId,
                         channelId = channelId,
@@ -650,6 +636,21 @@ case class EventServerConfig(
   stats: Boolean = false)
 
 object EventServer {
+
+  val eventServerLatencyHisto = Histogram.build()
+    .name("eventserver_latency_seconds").help("Latency for gets to EventServer in seconds.").register()
+
+  val promJettyServer: Server = {
+    val server = new Server(sys.env.getOrElse("EVENT_PROM_METRICS_PORT", "8888").toInt)
+    val context = new ServletContextHandler()
+    context.setContextPath("/")
+    server.setHandler(context)
+    context.addServlet(new ServletHolder(new MetricsServlet()), "/metrics")
+    server.start()
+    server.setStopAtShutdown(true)
+    server
+  }
+
   def createEventServer(config: EventServerConfig): ActorSystem = {
     implicit val system = ActorSystem("EventServerSystem")
 
