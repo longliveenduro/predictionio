@@ -491,11 +491,9 @@ class ServerActor[Q, P](
               // finally Serving.serve.
               val supplementedQuery = serving.supplementBase(query)
               // TODO: Parallelize the following.
-              val purePredictTimer = ServerActor.purePredictionLatencyHisto.startTimer()
               val predictions = algorithms.zip(models).map { case (a, m) =>
                 a.predictBase(m, supplementedQuery)
               }
-              purePredictTimer.observeDuration()
               // Notice that it is by design to call Serving.serve with the
               // *original* query.
               val prediction = serving.serveBase(query, predictions)
@@ -591,7 +589,10 @@ class ServerActor[Q, P](
                 (requestCount + 1)
               requestCount += 1
 
-              totalRecoTimer.observeDuration()
+              val duration = totalRecoTimer.observeDuration()
+              if(duration > 0.25d) {
+                log.warning(s"Slow call to QueryServer queries.json ($duration seconds) with params: queryString=$queryString query=$query")
+              }
 
               respondWithMediaType(`application/json`) {
                 complete(compact(render(pluginResult)))

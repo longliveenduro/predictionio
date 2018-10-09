@@ -177,7 +177,7 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
     reversed: Option[Boolean] = None)(implicit ec: ExecutionContext):
     Future[Iterator[Event]] = {
       Future {
-        val timer = HBLEvents.eventServerFindLatencyHisto.startTimer()
+        val timer = HBLEvents.hbaseFindLatencyHisto.startTimer()
         require(!((reversed == Some(true)) && (entityType.isEmpty || entityId.isEmpty)),
           "the parameter reversed can only be used with both entityType and entityId specified.")
 
@@ -206,7 +206,12 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
 
         val eventsIt: Iterator[Event] = results.map { resultToEvent(_, appId) }
 
-        timer.observeDuration()
+        val durationInSeconds = timer.observeDuration()
+        if(durationInSeconds > 0.05d) {
+          logger.warn(s"Slow call to HBase futureFind ($durationInSeconds seconds) with params: startTime=$startTime untilTime=$untilTime entityType=$entityType " +
+            s"entityId=$entityId eventNames=$eventNames targetEntityType=$targetEntityType targetEntityId=$targetEntityId reversed=$reversed " +
+            s"resultSize=${results.length} results=$results")
+        }
 
         eventsIt
       }
@@ -216,8 +221,8 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
 
 object HBLEvents {
   val eventServerGetLatencyHisto = Histogram.build()
-    .name("event_server_get_latency_seconds").help("Latency for gets to Event Server (HBase) in seconds.").register()
+    .name("hbase_get_latency_seconds").help("Latency for gets to HBase in seconds.").register()
 
-  val eventServerFindLatencyHisto = Histogram.build()
-    .name("event_server_find_latency_seconds").help("Latency for finds to Event Server (HBase) in seconds.").register()
+  val hbaseFindLatencyHisto = Histogram.build()
+    .name("hbase_find_latency_seconds").help("Latency for finds to HBase in seconds.").register()
 }
