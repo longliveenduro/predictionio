@@ -165,6 +165,8 @@ object LEventStore {
       eventNames = eventNames,
       targetEntityType = targetEntityType,
       targetEntityId = targetEntityId,
+      startTime = startTime,
+      untilTime = untilTime,
       limit = limit,
       reversed = Some(latest))
   }
@@ -320,6 +322,7 @@ object LEventStore {
       untilTime = untilTime,
       entityType = entityType,
       entityId = entityId,
+      channelName = channelName,
       eventNames = eventNames,
       targetEntityType = targetEntityType,
       targetEntityId = targetEntityId,
