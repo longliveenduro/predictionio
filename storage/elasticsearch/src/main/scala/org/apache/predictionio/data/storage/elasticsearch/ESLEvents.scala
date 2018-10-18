@@ -37,6 +37,7 @@ import org.json4s.native.Serialization.write
 import org.json4s.ext.JodaTimeSerializers
 import grizzled.slf4j.Logging
 import org.apache.http.message.BasicHeader
+import io.prometheus.client.Histogram
 
 class ESLEvents(val client: RestClient, config: StorageClientConfig, val index: String)
     extends LEvents with Logging {
@@ -310,17 +311,29 @@ class ESLEvents(val client: RestClient, config: StorageClientConfig, val index: 
     reversed: Option[Boolean] = None)
     (implicit ec: ExecutionContext): Future[Iterator[Event]] = {
     Future {
+      val timer = ESLEvents.elasticsearchFindLatencyHisto.startTimer()
       val estype = getEsType(appId, channelId)
       try {
         val query = ESUtils.createEventQuery(
           startTime, untilTime, entityType, entityId,
           eventNames, targetEntityType, targetEntityId, reversed)
-        limit.getOrElse(20) match {
+        val events = limit.getOrElse(20) match {
           case -1 => ESUtils.getEventAll(client, index, estype, query).toIterator
           case size => ESUtils.getEvents(client, index, estype, query, size).toIterator
         }
+        val durationInSeconds = timer.observeDuration()
+        if(durationInSeconds > 0.05d) {
+          logger.warn(s"Slow call to Elasticsearch futureFind ($durationInSeconds seconds) with params: appId=$appId channelId=$channelId startTime=$startTime untilTime=$untilTime entityType=$entityType " +
+            s"entityId=$entityId eventNames=$eventNames targetEntityType=$targetEntityType targetEntityId=$targetEntityId limit=$limit reversed=$reversed ")
+        }
+        events
       } catch {
         case e: IOException =>
+          val durationInSeconds = timer.observeDuration()
+          if(durationInSeconds > 0.05d) {
+            logger.warn(s"Slow call (FAILED) to Elasticsearch futureFind ($durationInSeconds seconds) with params: appId=$appId channelId=$channelId startTime=$startTime untilTime=$untilTime entityType=$entityType " +
+              s"entityId=$entityId eventNames=$eventNames targetEntityType=$targetEntityType targetEntityId=$targetEntityId limit=$limit reversed=$reversed ")
+          }
           error(e.getMessage)
           Iterator.empty
       }
@@ -328,3 +341,12 @@ class ESLEvents(val client: RestClient, config: StorageClientConfig, val index: 
   }
 
 }
+
+object ESLEvents {
+  val eventServerGetLatencyHisto = Histogram.build()
+    .name("elasticsearch_get_latency_seconds").help("Latency for gets to Elasticsearch in seconds.").register()
+
+  val elasticsearchFindLatencyHisto = Histogram.build()
+    .name("hbase_find_latency_seconds").help("Latency for finds to HBase in seconds.").register()
+}
+
