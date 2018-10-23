@@ -33,6 +33,7 @@ import org.joda.time.DateTime
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.concurrent.blocking
 
 class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace: String)
   extends LEvents with Logging {
@@ -100,12 +101,14 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
     event: Event, appId: Int, channelId: Option[Int])(implicit ec: ExecutionContext):
     Future[String] = {
     Future {
-      val table = getTable(appId, channelId)
-      val (put, rowKey) = HBEventsUtil.eventToPut(event, appId)
-      table.put(put)
-      table.flushCommits()
-      table.close()
-      rowKey.toString
+      blocking {
+        val table = getTable(appId, channelId)
+        val (put, rowKey) = HBEventsUtil.eventToPut(event, appId)
+        table.put(put)
+        table.flushCommits()
+        table.close()
+        rowKey.toString
+      }
     }
   }
 
@@ -114,12 +117,14 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
     events: Seq[Event], appId: Int, channelId: Option[Int])(implicit ec: ExecutionContext):
     Future[Seq[String]] = {
     Future {
-      val table = getTable(appId, channelId)
-      val (puts, rowKeys) = events.map { event => HBEventsUtil.eventToPut(event, appId) }.unzip
-      table.put(puts)
-      table.flushCommits()
-      table.close()
-      rowKeys.map(_.toString)
+      blocking {
+        val table = getTable(appId, channelId)
+        val (puts, rowKeys) = events.map { event => HBEventsUtil.eventToPut(event, appId) }.unzip
+        table.put(puts)
+        table.flushCommits()
+        table.close()
+        rowKeys.map(_.toString)
+      }
     }
   }
 
@@ -128,18 +133,20 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
     eventId: String, appId: Int, channelId: Option[Int])(implicit ec: ExecutionContext):
     Future[Option[Event]] = {
       Future {
-        val table = getTable(appId, channelId)
-        val rowKey = RowKey(eventId)
-        val get = new Get(rowKey.toBytes)
+        blocking {
+          val table = getTable(appId, channelId)
+          val rowKey = RowKey(eventId)
+          val get = new Get(rowKey.toBytes)
 
-        val result = table.get(get)
-        table.close()
+          val result = table.get(get)
+          table.close()
 
-        if (!result.isEmpty()) {
-          val event = resultToEvent(result, appId)
-          Some(event)
-        } else {
-          None
+          if (!result.isEmpty()) {
+            val event = resultToEvent(result, appId)
+            Some(event)
+          } else {
+            None
+          }
         }
       }
     }
@@ -149,12 +156,14 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
     eventId: String, appId: Int, channelId: Option[Int])(implicit ec: ExecutionContext):
     Future[Boolean] = {
     Future {
-      val table = getTable(appId, channelId)
-      val rowKey = RowKey(eventId)
-      val exists = table.exists(new Get(rowKey.toBytes))
-      table.delete(new Delete(rowKey.toBytes))
-      table.close()
-      exists
+      blocking {
+        val table = getTable(appId, channelId)
+        val rowKey = RowKey(eventId)
+        val exists = table.exists(new Get(rowKey.toBytes))
+        table.delete(new Delete(rowKey.toBytes))
+        table.close()
+        exists
+      }
     }
   }
 
@@ -173,36 +182,39 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
     reversed: Option[Boolean] = None)(implicit ec: ExecutionContext):
     Future[Iterator[Event]] = {
       Future {
+        blocking {
+          require(!((reversed == Some(true)) && (entityType.isEmpty || entityId.isEmpty)),
+            "the parameter reversed can only be used with both entityType and entityId specified.")
 
-        require(!((reversed == Some(true)) && (entityType.isEmpty || entityId.isEmpty)),
-          "the parameter reversed can only be used with both entityType and entityId specified.")
+          val table = getTable(appId, channelId)
 
-        val table = getTable(appId, channelId)
+          val scan = HBEventsUtil.createScan(
+            startTime = startTime,
+            untilTime = untilTime,
+            entityType = entityType,
+            entityId = entityId,
+            eventNames = eventNames,
+            targetEntityType = targetEntityType,
+            targetEntityId = targetEntityId,
+            reversed = reversed)
+          val scanner = table.getScanner(scan)
+          table.close()
 
-        val scan = HBEventsUtil.createScan(
-          startTime = startTime,
-          untilTime = untilTime,
-          entityType = entityType,
-          entityId = entityId,
-          eventNames = eventNames,
-          targetEntityType = targetEntityType,
-          targetEntityId = targetEntityId,
-          reversed = reversed)
-        val scanner = table.getScanner(scan)
-        table.close()
+          val eventsIter = scanner.iterator()
 
-        val eventsIter = scanner.iterator()
+          // Get all events if None or Some(-1)
+          val results: Iterator[Result] = limit match {
+            case Some(-1) => eventsIter
+            case None => eventsIter
+            case Some(x) => eventsIter.take(x)
+          }
 
-        // Get all events if None or Some(-1)
-        val results: Iterator[Result] = limit match {
-          case Some(-1) => eventsIter
-          case None => eventsIter
-          case Some(x) => eventsIter.take(x)
+          val eventsIt = results.map {
+            resultToEvent(_, appId)
+          }
+
+          eventsIt
         }
-
-        val eventsIt = results.map { resultToEvent(_, appId) }
-
-        eventsIt
       }
   }
 

@@ -24,6 +24,9 @@ import org.apache.predictionio.workflow.PersistentModelManifest
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future, blocking}
+import scala.language.postfixOps
 import scala.reflect._
 
 /** Base class of a local algorithm.
@@ -72,11 +75,13 @@ abstract class LAlgorithm[PD, M : ClassTag, Q, P]
     val glomQs: RDD[Array[(Long, Q)]] = qs.glom()
     val cartesian: RDD[(M, Array[(Long, Q)])] = mRDD.cartesian(glomQs)
     cartesian.flatMap { case (m, qArray) =>
-      qArray.map { case (qx, q) => (qx, predict(m, q)) }
+      qArray.map {
+        case (qx, q) => (qx, Await.result(predict(m, q)(scala.concurrent.ExecutionContext.global), 60 minutes) )
+      }
     }
   }
 
-  def predictBase(localBaseModel: Any, q: Q): P = {
+  def predictBase(localBaseModel: Any, q: Q)(implicit ec: ExecutionContext): Future[P] = {
     predict(localBaseModel.asInstanceOf[M], q)
   }
 
@@ -87,7 +92,7 @@ abstract class LAlgorithm[PD, M : ClassTag, Q, P]
     * @param q An input query.
     * @return A prediction.
     */
-  def predict(m: M, q: Q): P
+  def predict(m: M, q: Q)(implicit ec: ExecutionContext): Future[P]
 
   /** :: DeveloperApi ::
     * Engine developers should not use this directly (read on to see how local

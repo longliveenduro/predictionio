@@ -25,6 +25,9 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd.RDD
 
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future, blocking}
+import scala.language.postfixOps
 import scala.reflect._
 
 /** Base class of a parallel-to-local algorithm.
@@ -67,10 +70,10 @@ abstract class P2LAlgorithm[PD, M: ClassTag, Q: ClassTag, P]
     * @return Batch of predicted results
     */
   def batchPredict(m: M, qs: RDD[(Long, Q)]): RDD[(Long, P)] = {
-    qs.mapValues { q => predict(m, q) }
+    qs.mapValues { q => Await.result(predict(m, q)(scala.concurrent.ExecutionContext.global), 60 minutes) }
   }
 
-  def predictBase(bm: Any, q: Q): P = predict(bm.asInstanceOf[M], q)
+  def predictBase(bm: Any, q: Q)(implicit ec: ExecutionContext): Future[P] = predict(bm.asInstanceOf[M], q)
 
   /** Implement this method to produce a prediction from a query and trained
     * model.
@@ -79,7 +82,7 @@ abstract class P2LAlgorithm[PD, M: ClassTag, Q: ClassTag, P]
     * @param query An input query.
     * @return A prediction.
     */
-  def predict(model: M, query: Q): P
+  def predict(model: M, query: Q)(implicit ec: ExecutionContext): Future[P]
 
   /** :: DeveloperApi ::
     * Engine developers should not use this directly (read on to see how

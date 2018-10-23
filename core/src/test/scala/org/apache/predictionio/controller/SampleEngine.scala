@@ -19,12 +19,13 @@ package org.apache.predictionio.controller
 
 import org.apache.predictionio.controller.{Params => PIOParams}
 import org.apache.predictionio.core._
-
 import grizzled.slf4j.Logger
 import org.apache.predictionio.workflow.WorkflowParams
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd.RDD
+
+import scala.concurrent.{ExecutionContext, Future}
 
 object Engine0 {
   @transient lazy val logger = Logger[this.type] 
@@ -204,8 +205,8 @@ object Engine0 {
       qs.mapValues(q => Prediction(id, q, Some(m)))
     }
     
-    def predict(m: PAlgo0.Model, q: Query): Prediction = {
-      Prediction(id, q, Some(m))
+    def predict(m: PAlgo0.Model, q: Query)(implicit ec: ExecutionContext): Future[Prediction] = {
+      Future.successful(Prediction(id, q, Some(m)))
     }
   }
 
@@ -224,8 +225,8 @@ object Engine0 {
       qs.mapValues(q => Prediction(id, q, Some(m)))
     }
 
-    def predict(m: PAlgo1.Model, q: Query): Prediction = {
-      Prediction(id, q, Some(m))
+    def predict(m: PAlgo1.Model, q: Query)(implicit ec: ExecutionContext): Future[Prediction] = {
+      Future.successful(Prediction(id, q, Some(m)))
     }
   }
   
@@ -247,8 +248,8 @@ object Engine0 {
       qs.mapValues(q => Prediction(id, q, Some(m)))
     }
 
-    def predict(m: PAlgo2.Model, q: Query): Prediction = {
-      Prediction(id, q, Some(m))
+    def predict(m: PAlgo2.Model, q: Query)(implicit ec: ExecutionContext): Future[Prediction] = {
+      Future.successful(Prediction(id, q, Some(m)))
     }
   }
   
@@ -274,8 +275,8 @@ object Engine0 {
       qs.mapValues(q => Prediction(id, q, Some(m)))
     }
 
-    def predict(m: PAlgo3.Model, q: Query): Prediction = {
-      Prediction(id, q, Some(m))
+    def predict(m: PAlgo3.Model, q: Query)(implicit ec: ExecutionContext): Future[Prediction] = {
+      Future.successful(Prediction(id, q, Some(m)))
     }
   }
   
@@ -287,8 +288,8 @@ object Engine0 {
   extends LAlgorithm[ProcessedData, LAlgo0.Model, Query, Prediction] {
     def train(pd: ProcessedData): LAlgo0.Model = LAlgo0.Model(id, pd)
 
-    def predict(m: LAlgo0.Model, q: Query): Prediction = {
-      Prediction(id, q, Some(m))
+    def predict(m: LAlgo0.Model, q: Query)(implicit ec: ExecutionContext): Future[Prediction] = {
+      Future.successful(Prediction(id, q, Some(m)))
     }
   }
   
@@ -300,8 +301,8 @@ object Engine0 {
   extends LAlgorithm[ProcessedData, LAlgo1.Model, Query, Prediction] {
     def train(pd: ProcessedData): LAlgo1.Model = LAlgo1.Model(id, pd)
     
-    def predict(m: LAlgo1.Model, q: Query): Prediction = {
-      Prediction(id, q, Some(m))
+    def predict(m: LAlgo1.Model, q: Query)(implicit ec: ExecutionContext): Future[Prediction] = {
+      Future.successful(Prediction(id, q, Some(m)))
     }
   }
   
@@ -318,8 +319,8 @@ object Engine0 {
   extends LAlgorithm[ProcessedData, LAlgo2.Model, Query, Prediction] {
     def train(pd: ProcessedData): LAlgo2.Model = LAlgo2.Model(params.id, pd)
     
-    def predict(m: LAlgo2.Model, q: Query): Prediction = {
-      Prediction(params.id, q, Some(m))
+    def predict(m: LAlgo2.Model, q: Query)(implicit ec: ExecutionContext): Future[Prediction] = {
+      Future.successful(Prediction(params.id, q, Some(m)))
     }
   }
 
@@ -333,8 +334,8 @@ object Engine0 {
   extends LAlgorithm[ProcessedData, LAlgo3.Model, Query, Prediction] {
     def train(pd: ProcessedData): LAlgo3.Model = LAlgo3.Model(params.id, pd)
     
-    def predict(m: LAlgo3.Model, q: Query): Prediction = {
-      Prediction(params.id, q, Some(m))
+    def predict(m: LAlgo3.Model, q: Query)(implicit ec: ExecutionContext): Future[Prediction] = {
+      Future.successful(Prediction(params.id, q, Some(m)))
     }
   }
 
@@ -348,8 +349,8 @@ object Engine0 {
     def train(sc: SparkContext, pd: ProcessedData)
     : NAlgo0.Model = NAlgo0.Model(id, pd)
   
-    def predict(m: NAlgo0.Model, q: Query): Prediction = {
-      Prediction(id, q, Some(m))
+    def predict(m: NAlgo0.Model, q: Query)(implicit ec: ExecutionContext): Future[Prediction] = {
+      Future.successful(Prediction(id, q, Some(m)))
     }
   }
 
@@ -362,8 +363,8 @@ object Engine0 {
     def train(sc: SparkContext, pd: ProcessedData)
     : NAlgo1.Model = NAlgo1.Model(id, pd)
    
-    def predict(m: NAlgo1.Model, q: Query): Prediction = {
-      Prediction(id, q, Some(m))
+    def predict(m: NAlgo1.Model, q: Query)(implicit ec: ExecutionContext): Future[Prediction] = {
+      Future.successful(Prediction(id, q, Some(m)))
     }
   }
   
@@ -381,8 +382,8 @@ object Engine0 {
     def train(sc: SparkContext, pd: ProcessedData)
     : NAlgo2.Model = NAlgo2.Model(params.id, pd)
     
-    def predict(m: NAlgo2.Model, q: Query): Prediction = {
-      Prediction(params.id, q, Some(m))
+    def predict(m: NAlgo2.Model, q: Query)(implicit ec: ExecutionContext): Future[Prediction] = {
+      Future.successful(Prediction(params.id, q, Some(m)))
     }
   }
 
@@ -397,8 +398,8 @@ object Engine0 {
     def train(sc: SparkContext, pd: ProcessedData)
     : NAlgo3.Model = NAlgo3.Model(params.id, pd)
     
-    def predict(m: NAlgo3.Model, q: Query): Prediction = {
-      Prediction(params.id, q, Some(m))
+    def predict(m: NAlgo3.Model, q: Query)(implicit ec: ExecutionContext): Future[Prediction] = {
+      Future.successful(Prediction(params.id, q, Some(m)))
     }
   }
 

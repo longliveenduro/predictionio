@@ -24,6 +24,8 @@ import org.apache.predictionio.workflow.PersistentModelManifest
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 
+import scala.concurrent.{ExecutionContext, Future}
+
 /** Base class of a parallel algorithm.
   *
   * A parallel algorithm can be run in parallel on a cluster and produces a
@@ -72,7 +74,7 @@ abstract class PAlgorithm[PD, M, Q, P]
   def batchPredict(m: M, qs: RDD[(Long, Q)]): RDD[(Long, P)] =
     throw new NotImplementedError("batchPredict not implemented")
 
-  def predictBase(baseModel: Any, query: Q): P = {
+  def predictBase(baseModel: Any, query: Q)(implicit ec: ExecutionContext): Future[P] = {
     predict(baseModel.asInstanceOf[M], query)
   }
 
@@ -83,7 +85,7 @@ abstract class PAlgorithm[PD, M, Q, P]
     * @param query An input query.
     * @return A prediction.
     */
-  def predict(model: M, query: Q): P
+  def predict(model: M, query: Q)(implicit ec: ExecutionContext): Future[P]
 
   /** :: DeveloperApi ::
     * Engine developers should not use this directly (read on to see how parallel

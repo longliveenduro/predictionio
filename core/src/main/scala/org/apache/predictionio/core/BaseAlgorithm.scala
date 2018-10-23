@@ -26,6 +26,8 @@ import net.jodah.typetools.TypeResolver
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 
+import scala.concurrent.{ExecutionContext, Future}
+
 /** :: DeveloperApi ::
   * Base trait with default custom query serializer, exposed to engine developer
   * via [[org.apache.predictionio.controller.CustomQuerySerializer]]
@@ -90,7 +92,7 @@ abstract class BaseAlgorithm[PD, M, Q, P]
     * @return Predicted result
     */
   @DeveloperApi
-  def predictBase(bm: Any, q: Q): P
+  def predictBase(bm: Any, q: Q)(implicit ec: ExecutionContext): Future[P]
 
   /** :: DeveloperApi ::
     * Engine developers should not use this directly. Prepare a model for
