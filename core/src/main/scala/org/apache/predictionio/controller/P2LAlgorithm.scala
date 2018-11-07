@@ -76,7 +76,7 @@ abstract class P2LAlgorithm[PD, M: ClassTag, Q: ClassTag, P]
   }
 
   def predictBase(bm: Any, q: Q)(implicit ec: ExecutionContext): Future[P] =
-    predict(bm.asInstanceOf[M], q)
+    predict(bm.asInstanceOf[M], q)(ec)
 
   /** Implement this method to produce a prediction from a query and trained
     * model.

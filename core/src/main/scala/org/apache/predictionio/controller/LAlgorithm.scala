@@ -83,7 +83,7 @@ abstract class LAlgorithm[PD, M : ClassTag, Q, P]
   }
 
   def predictBase(localBaseModel: Any, q: Q)(implicit ec: ExecutionContext): Future[P] = {
-    predict(localBaseModel.asInstanceOf[M], q)
+    predict(localBaseModel.asInstanceOf[M], q)(ec)
   }
 
   /** Implement this method to produce a prediction from a query and trained

@@ -75,7 +75,7 @@ abstract class PAlgorithm[PD, M, Q, P]
     throw new NotImplementedError("batchPredict not implemented")
 
   def predictBase(baseModel: Any, query: Q)(implicit ec: ExecutionContext): Future[P] = {
-    predict(baseModel.asInstanceOf[M], query)
+    predict(baseModel.asInstanceOf[M], query)(ec)
   }
 
   /** Implement this method to produce a prediction from a query and trained
