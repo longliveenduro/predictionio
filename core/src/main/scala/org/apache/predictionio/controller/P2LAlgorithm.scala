@@ -70,10 +70,13 @@ abstract class P2LAlgorithm[PD, M: ClassTag, Q: ClassTag, P]
     * @return Batch of predicted results
     */
   def batchPredict(m: M, qs: RDD[(Long, Q)]): RDD[(Long, P)] = {
-    qs.mapValues { q => Await.result(predict(m, q)(scala.concurrent.ExecutionContext.global), 60 minutes) }
+    qs.mapValues { q =>
+      Await.result(predict(m, q)(scala.concurrent.ExecutionContext.global), 60 minutes)
+    }
   }
 
-  def predictBase(bm: Any, q: Q)(implicit ec: ExecutionContext): Future[P] = predict(bm.asInstanceOf[M], q)
+  def predictBase(bm: Any, q: Q)(implicit ec: ExecutionContext): Future[P] =
+    predict(bm.asInstanceOf[M], q)
 
   /** Implement this method to produce a prediction from a query and trained
     * model.

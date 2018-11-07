@@ -76,7 +76,8 @@ abstract class LAlgorithm[PD, M : ClassTag, Q, P]
     val cartesian: RDD[(M, Array[(Long, Q)])] = mRDD.cartesian(glomQs)
     cartesian.flatMap { case (m, qArray) =>
       qArray.map {
-        case (qx, q) => (qx, Await.result(predict(m, q)(scala.concurrent.ExecutionContext.global), 60 minutes) )
+        case (qx, q) =>
+          (qx, Await.result(predict(m, q)(scala.concurrent.ExecutionContext.global), 60 minutes) )
       }
     }
   }
