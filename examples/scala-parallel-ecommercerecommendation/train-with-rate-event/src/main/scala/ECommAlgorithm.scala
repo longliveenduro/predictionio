@@ -239,7 +239,7 @@ class ECommAlgorithm(val ap: ECommAlgorithmParams)
     buyCountsRDD.collectAsMap.toMap
   }
 
-  def predict(model: ECommModel, query: Query)(implicit ec: ExecutionContext): Future[PredictedResult] = {
+  def predictAsync(model: ECommModel, query: Query)(implicit ec: ExecutionContext): Future[PredictedResult] = {
 
     val userFeatures = model.userFeatures
     val productModels = model.productModels

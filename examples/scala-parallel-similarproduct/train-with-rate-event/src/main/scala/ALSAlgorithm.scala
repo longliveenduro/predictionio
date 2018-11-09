@@ -140,7 +140,7 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
     )
   }
 
-  def predict(model: ALSModel, query: Query)(implicit ec: ExecutionContext): Future[PredictedResult] = {
+  def predictAsync(model: ALSModel, query: Query)(implicit ec: ExecutionContext): Future[PredictedResult] = {
     val productFeatures = model.productFeatures
 
     // convert items to Int index

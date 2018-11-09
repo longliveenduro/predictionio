@@ -104,7 +104,7 @@ class CooccurrenceAlgorithm(val ap: CooccurrenceAlgorithmParams)
     topCooccurrences
   }
 
-  def predict(model: CooccurrenceModel, query: Query)(implicit ec: ExecutionContext): Future[PredictedResult] = {
+  def predictAsync(model: CooccurrenceModel, query: Query)(implicit ec: ExecutionContext): Future[PredictedResult] = {
 
     // convert items to Int index
     val queryList: Set[Int] = query.items

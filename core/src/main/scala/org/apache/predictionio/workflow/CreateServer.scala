@@ -506,7 +506,7 @@ class PredictionServer[Q, P](
               val supplementedQuery = serving.supplementBase(query)
 
               val predictionsFuture = Future.sequence(algorithms.zip(models).map { case (a, m) =>
-                a.predictBase(m, supplementedQuery)
+                a.predictBaseAsync(m, supplementedQuery)
               })
               // Notice that it is by design to call Serving.serve with the
               // *original* query.

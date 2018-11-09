@@ -77,14 +77,38 @@ abstract class LAlgorithm[PD, M : ClassTag, Q, P]
     cartesian.flatMap { case (m, qArray) =>
       qArray.map {
         case (qx, q) =>
-          (qx, Await.result(predict(m, q)(scala.concurrent.ExecutionContext.global), 60 minutes) )
+          (qx,
+            Await.result(predictAsync(m, q)(scala.concurrent.ExecutionContext.global), 60 minutes) )
       }
     }
   }
 
-  def predictBase(localBaseModel: Any, q: Q)(implicit ec: ExecutionContext): Future[P] = {
-    predict(localBaseModel.asInstanceOf[M], q)(ec)
-  }
+  override def predictBaseAsync(localBaseModel: Any, q: Q)(implicit ec: ExecutionContext)
+      : Future[P] =
+    predictAsync(localBaseModel.asInstanceOf[M], q)(ec)
+
+  @deprecated(message =
+    "this method is just here for backward compatibility, predictBaseAsync() is called now",
+    since = "0.14.0")
+  override def predictBase(localBaseModel: Any, q: Q): P =
+    predict(localBaseModel.asInstanceOf[M], q)
+
+  /** Implement this method to produce a Future of a prediction in a non blocking way
+    * from a query and trained model.
+    *
+    * This method is implemented to just delegate to blocking predict() for
+    * backward compatibility reasons.
+    * Definitely overwrite it to implement your blocking prediction method, and leave
+    * the old blocking predict() as it is (throwing an exception), it won't be called from
+    * now on.
+    *
+    * @param model Trained model produced by [[train]].
+    * @param query An input query.
+    * @param ec ExecutionContext to use for async operations
+    * @return A Future of a prediction.
+    */
+  def predictAsync(model: M, query: Q)(implicit ec: ExecutionContext): Future[P] =
+    Future.successful(blocking(predict(model, query)))
 
   /** Implement this method to produce a prediction from a query and trained
     * model.
@@ -93,7 +117,9 @@ abstract class LAlgorithm[PD, M : ClassTag, Q, P]
     * @param q An input query.
     * @return A prediction.
     */
-  def predict(m: M, q: Q)(implicit ec: ExecutionContext): Future[P]
+  @deprecated(message = "override non blocking predictAsync() instead", since = "0.14.0")
+  def predict(m: M, q: Q): P =
+    throw new NotImplementedError("predict() is deprecated, override predictAsync() instead")
 
   /** :: DeveloperApi ::
     * Engine developers should not use this directly (read on to see how local

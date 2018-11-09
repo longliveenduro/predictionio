@@ -93,7 +93,7 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
       itemStringIntMap = itemStringIntMap)
   }
 
-  def predict(model: ALSModel, query: Query)(implicit ec: ExecutionContext): Future[PredictedResult] = {
+  def predictAsync(model: ALSModel, query: Query)(implicit ec: ExecutionContext): Future[PredictedResult] = {
     Future.successful(
       // Convert String ID to Int index for Mllib
       model.userStringIntMap.get(query.user).map { userInt =>

@@ -47,7 +47,7 @@ class NaiveBayesAlgorithm(val ap: AlgorithmParams)
     NaiveBayes.train(data.labeledPoints, ap.lambda)
   }
 
-  def predict(model: NaiveBayesModel, query: Query)(implicit ec: ExecutionContext): Future[PredictedResult] = {
+  def predictAsync(model: NaiveBayesModel, query: Query)(implicit ec: ExecutionContext): Future[PredictedResult] = {
     val label = model.predict(Vectors.dense(
       Array(query.attr0, query.attr1, query.attr2)
     ))
