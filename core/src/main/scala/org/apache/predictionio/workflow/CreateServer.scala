@@ -549,7 +549,10 @@ class PredictionServer[Q, P](
               }
 
               onComplete(pluginResultFuture) {
-                case Success(pluginResult) => complete(compact(render(pluginResult)))
+                case Success(pluginResult) =>
+                  val responseBody = compact(render(pluginResult))
+                  log.info(s"Recommendation for query $queryString is: $responseBody")
+                  complete(responseBody)
                 case Failure(t) =>
                   val msg = s"Query:\n$queryString\n\nStack Trace:\n" +
                     s"${ExceptionUtils.getStackTrace(t)}\n\n"
