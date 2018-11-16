@@ -105,8 +105,8 @@ object LEventStore {
 
     Await.result(findByEntityAsync(
       appName = appName,
-      entityType = entityType,
-      entityId = entityId,
+      entityType = Some(entityType),
+      entityId = Some(entityId),
       channelName = channelName,
       eventNames = eventNames,
       targetEntityType = targetEntityType,
@@ -142,8 +142,8 @@ object LEventStore {
     */
   def findByEntityAsync(
     appName: String,
-    entityType: String,
-    entityId: String,
+    entityType: Option[String],
+    entityId: Option[String],
     channelName: Option[String] = None,
     eventNames: Option[Seq[String]] = None,
     targetEntityType: Option[Option[String]] = None,
@@ -160,8 +160,8 @@ object LEventStore {
       channelId = channelId,
       startTime = startTime,
       untilTime = untilTime,
-      entityType = Some(entityType),
-      entityId = Some(entityId),
+      entityType = entityType,
+      entityId = entityId,
       eventNames = eventNames,
       targetEntityType = targetEntityType,
       targetEntityId = targetEntityId,

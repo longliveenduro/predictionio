@@ -143,8 +143,8 @@ object LJavaEventStore {
     */
   def findByEntityAsync(
     appName: String,
-    entityType: String,
-    entityId: String,
+    entityType: Option[String],
+    entityId: Option[String],
     channelName: Option[String],
     eventNames: Option[java.util.List[String]],
     targetEntityType: Option[Option[String]],
