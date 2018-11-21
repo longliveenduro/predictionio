@@ -18,6 +18,8 @@
 
 package org.apache.predictionio.data.storage.hbase
 
+import java.util.concurrent.Executors
+
 import grizzled.slf4j.Logging
 import org.apache.predictionio.data.storage.Event
 import org.apache.predictionio.data.storage.LEvents
@@ -167,6 +169,8 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
     }
   }
 
+  val blockingThreadPoolExecutor = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(200))
+
   override
   def futureFind(
     appId: Int,
@@ -215,7 +219,6 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
 
           eventsIt
         }
-      }
+      }(blockingThreadPoolExecutor)
   }
-
 }
