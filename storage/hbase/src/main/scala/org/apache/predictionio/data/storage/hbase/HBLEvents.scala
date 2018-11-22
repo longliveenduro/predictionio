@@ -40,6 +40,9 @@ import scala.concurrent.blocking
 class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace: String)
   extends LEvents with Logging {
 
+  private val blockingThreadPoolExecutor =
+    ExecutionContext.fromExecutor(Executors.newFixedThreadPool(10))
+
   // implicit val formats = DefaultFormats + new EventJson4sSupport.DBSerializer
 
   def resultToEvent(result: Result, appId: Int): Event =
@@ -111,7 +114,7 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
         table.close()
         rowKey.toString
       }
-    }
+    }(blockingThreadPoolExecutor)
   }
 
   override
@@ -127,7 +130,7 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
         table.close()
         rowKeys.map(_.toString)
       }
-    }
+    }(blockingThreadPoolExecutor)
   }
 
   override
@@ -150,7 +153,7 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
             None
           }
         }
-      }
+      }(blockingThreadPoolExecutor)
     }
 
   override
@@ -166,10 +169,8 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
         table.close()
         exists
       }
-    }
+    }(blockingThreadPoolExecutor)
   }
-
-  val blockingThreadPoolExecutor = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(200))
 
   override
   def futureFind(
