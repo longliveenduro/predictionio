@@ -214,7 +214,6 @@ class HBLEvents(val client: HBClient, config: StorageClientConfig, val namespace
           val eventsIt = results.map {
             resultToEvent(_, appId)
           }
-          scanner.close()
 
           eventsIt
         }
